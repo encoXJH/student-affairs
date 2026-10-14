@@ -1,4 +1,4 @@
-# 学生自主管理平台 · 数据库 E-R 实体关系图
+# 学生工作处系统 · 数据库 E-R 实体关系图
 
 > 数据库：`sg_platform`（MySQL 8.0 / InnoDB / utf8mb4_0900_ai_ci）  
 > 规范：雪花主键 / 全逻辑外键（无物理外键）/ 逻辑删除 / 快照冗余防篡改  
@@ -18,7 +18,7 @@
 | 二 · 人事流转 | `org_member` | 成员任职档案 |
 | | `recruit_application` | 纳新申请表 |
 | | `recruit_interview` | 面试记录表（1:N 多轮） |
-| | `member_change_apply` | 人事流转申请单（调动/晋升/离职） |
+| | `member_change_apply` | 人事流转记录单（调动/晋升免审，离职需审批） |
 | | `import_batch` | 批量导入批次表 |
 | | `import_error_detail` | 导入错误明细表 |
 | 三 · 值班工时 | `duty_schedule` | 值班排班表 |
@@ -208,16 +208,16 @@ erDiagram
         bigint id PK "主键"
         bigint user_id FK "申请人"
         bigint member_id FK "原任职档案"
-        varchar change_type "TRANSFER/PROMOTE/RESIGN"
+        varchar change_type "TRANSFER/PROMOTE免审 RESIGN需审批"
         bigint from_org_id FK "原组织"
         varchar from_org_name "原组织快照"
         varchar from_position_name "原职务快照"
         bigint to_org_id FK "目标组织（离职为空）"
         bigint to_position_id FK "目标职务"
         varchar to_position_name "目标职务快照"
-        tinyint required_level "终审层级 3/2"
+        tinyint required_level "终审层级(仅RESIGN)"
         varchar reason "申请理由"
-        varchar status "PENDING/APPROVED/REJECTED/CANCELLED"
+        varchar status "免审即APPROVED；RESIGN走PENDING流"
         datetime finished_at "办结时间"
     }
     import_batch {
@@ -420,7 +420,7 @@ erDiagram
 
     approval_record {
         bigint id PK "主键"
-        varchar biz_type "RECRUIT/TRANSFER/PROMOTE/RESIGN/ACTIVITY/BID/CHECKIN_ANOMALY"
+        varchar biz_type "RECRUIT/RESIGN/ACTIVITY/BID/CHECKIN_ANOMALY"
         bigint biz_id "业务单据ID（多态）"
         tinyint node_level "3二级管理员 2指导老师 1学工处"
         bigint approver_id FK "审批人"

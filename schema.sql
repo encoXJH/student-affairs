@@ -1,5 +1,5 @@
 -- ============================================================================
--- 学生自主管理平台 · 板块一：学生自主管理团队一站式管理
+-- 学生工作处系统 · 板块一：学生自主管理团队一站式管理
 -- 数据库：MySQL 8.0+ / InnoDB / utf8mb4 / utf8mb4_0900_ai_ci
 -- 规范：雪花主键 / 全逻辑外键（严禁物理外键）/ 逻辑删除 / 快照冗余防篡改
 -- 说明：MySQL 主键约束名固定为 PRIMARY，pk_ 规范通过主键列名 id 统一体现；
@@ -179,16 +179,16 @@ CREATE TABLE member_change_apply (
   id                 BIGINT UNSIGNED NOT NULL COMMENT '主键（雪花算法）',
   user_id            BIGINT UNSIGNED NOT NULL COMMENT '申请人用户ID',
   member_id          BIGINT UNSIGNED NOT NULL COMMENT '关联原任职档案org_member.id（精准锁定具体被变动的职务记录）',
-  change_type        VARCHAR(16)     NOT NULL COMMENT '类型：TRANSFER跨部门调动 PROMOTE晋升 RESIGN离职',
+  change_type        VARCHAR(16)     NOT NULL COMMENT '类型：TRANSFER跨部门调动 PROMOTE晋升（此两类换届免审，一键生效直接留痕） RESIGN离职（需审批）',
   from_org_id        BIGINT UNSIGNED NOT NULL COMMENT '原组织ID',
   from_org_name      VARCHAR(64)     NOT NULL COMMENT '原组织名称快照',
   from_position_name VARCHAR(32)     NOT NULL COMMENT '原职务快照',
   to_org_id          BIGINT UNSIGNED DEFAULT NULL COMMENT '目标组织ID（离职为空）',
   to_position_id     BIGINT UNSIGNED DEFAULT NULL COMMENT '目标职务ID',
   to_position_name   VARCHAR(32)     DEFAULT NULL COMMENT '目标职务快照',
-  required_level     TINYINT         NOT NULL DEFAULT 3 COMMENT '终审层级：3二级管理员（干事升部长） 2指导老师（晋升顶层职务）',
+  required_level     TINYINT         NOT NULL DEFAULT 3 COMMENT '终审层级（仅RESIGN离职生效）：3二级管理员 2指导老师',
   reason             VARCHAR(500)    DEFAULT NULL COMMENT '申请理由',
-  status             VARCHAR(16)     NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING审批中 APPROVED已核准 REJECTED已驳回 CANCELLED已撤销',
+  status             VARCHAR(16)     NOT NULL DEFAULT 'PENDING' COMMENT 'TRANSFER/PROMOTE提交即APPROVED（免审）；RESIGN走PENDING审批中 APPROVED已核准 REJECTED已驳回 CANCELLED已撤销',
   finished_at        DATETIME        DEFAULT NULL COMMENT '办结时间',
   created_by         BIGINT UNSIGNED DEFAULT NULL COMMENT '创建人',
   updated_by         BIGINT UNSIGNED DEFAULT NULL COMMENT '更新人',
@@ -198,7 +198,7 @@ CREATE TABLE member_change_apply (
   PRIMARY KEY (id),
   KEY idx_user_status (user_id, status),
   KEY idx_type_status (change_type, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='人事流转申请单（换届/调动/晋升/离职）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='人事流转记录单（换届调动/晋升免审一键生效，离职需审批）';
 
 CREATE TABLE import_batch (
   id            BIGINT UNSIGNED NOT NULL COMMENT '主键（雪花算法）',
@@ -479,7 +479,7 @@ CREATE TABLE activity_volunteer (
 
 CREATE TABLE approval_record (
   id                BIGINT UNSIGNED NOT NULL COMMENT '主键（雪花算法）',
-  biz_type          VARCHAR(24)     NOT NULL COMMENT '业务类型：RECRUIT纳新 TRANSFER调动 PROMOTE晋升 RESIGN离职 ACTIVITY活动 BID竞标 CHECKIN_ANOMALY异常核准',
+  biz_type          VARCHAR(24)     NOT NULL COMMENT '业务类型：RECRUIT纳新 RESIGN离职 ACTIVITY活动 BID竞标 CHECKIN_ANOMALY异常核准（TRANSFER/PROMOTE换届已免审，不产生审批）',
   biz_id            BIGINT UNSIGNED NOT NULL COMMENT '业务单据ID',
   node_level        TINYINT         NOT NULL COMMENT '审批层级：3二级管理员 2指导老师 1学工处',
   approver_id       BIGINT UNSIGNED NOT NULL COMMENT '审批人ID',
@@ -500,7 +500,7 @@ CREATE TABLE approval_record (
 CREATE TABLE message_notice (
   id          BIGINT UNSIGNED NOT NULL COMMENT '主键（雪花算法）',
   receiver_id BIGINT UNSIGNED NOT NULL COMMENT '接收人ID',
-  notice_type TINYINT         NOT NULL COMMENT '类型：1纳新结果 2换届申请受理 3换届审批结果 4离职审批结果 5值班异常提醒管理员 6活动立项流转 7活动驳回 8承办征集广播 9竞标结果 10志愿者招募推送 11志愿录用结果 12工时核定 13导入完成 14系统公告',
+  notice_type TINYINT         NOT NULL COMMENT '类型：1纳新结果 2换届生效通知 3废弃（原换届审批结果，换届已免审） 4离职审批结果 5值班异常提醒管理员 6活动立项流转 7活动驳回 8承办征集广播 9竞标结果 10志愿者招募推送 11志愿录用结果 12工时核定 13导入完成 14系统公告',
   title       VARCHAR(128)    NOT NULL COMMENT '标题',
   content     VARCHAR(500)    NOT NULL COMMENT '内容',
   biz_type    VARCHAR(24)     DEFAULT NULL COMMENT '关联业务类型',
